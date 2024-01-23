@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import (QApplication, QWidget, QTableWidget, QHBoxLayout,
-                             QVBoxLayout, QPushButton, QHeaderView, QTableWidgetItem)
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QApplication, QWidget, QHeaderView, QTableWidgetItem
 from PyQt5 import uic
 import sys
 import sqlite3 as sq
@@ -28,10 +28,32 @@ class MainWin(QWidget):
             result = self.cur.execute(f"SELECT * FROM Coffee").fetchall()
             result = [[elem[0]] + [elem[1]] + [elem[2]]
                       + [elem[3]] + [elem[4]] + [elem[5]] + [elem[6]] for elem in result]
+            self.tableWidget.setRowCount(0)
             for i, row in enumerate(result):
                 self.tableWidget.setRowCount(self.tableWidget.rowCount() + 1)
                 for j, elem in enumerate(row):
                     self.tableWidget.setItem(i, j, QTableWidgetItem(str(elem)))
+        except sq.Error as e:
+            print(e)
+
+    def write(self, data):
+        try:
+            sqlite_insert_query = """INSERT INTO Coffee (id_coffee, name, roasting, shape, taste, price, volume)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?);"""
+            self.cur.execute(sqlite_insert_query, data)
+            self.db.commit()
+            self.view()
+        except sq.Error as e:
+            print(e)
+
+    def edit(self, data):
+        try:
+            sqlite_insert_query = """UPDATE Coffee 
+                                     SET name = ?, roasting = ?, shape = ?, taste = ?,
+                                     price = ?, volume = ? WHERE id_coffee = ?;"""
+            self.cur.execute(sqlite_insert_query, (*data[1:], data[0]))
+            self.db.commit()
+            self.view()
         except sq.Error as e:
             print(e)
 
@@ -43,12 +65,19 @@ class MainWin(QWidget):
             return row_data
 
     def show_data_form(self):
-        data = []
+        data = [max(map(int, [self.tableWidget.item(row, 0).text()
+                             for row in range(self.tableWidget.rowCount())
+                             if self.tableWidget.item(row, 0) is not None ]))+1]
         if self.sender().text() == 'Изменить':
             data = self.get_row()
         if data is not None:
             self.data_win = DataWin(data)
+            if len(data) == 1:
+                self.data_win.new_data.connect(self.write)
+            else:
+                self.data_win.new_data.connect(self.edit)
             self.data_win.show()
+
 
 
     def initDB(self):
@@ -57,6 +86,7 @@ class MainWin(QWidget):
 
 
 class DataWin(QWidget):
+    new_data = pyqtSignal(list)
     def __init__(self, data):
         super().__init__()
         self.data = data
@@ -66,7 +96,7 @@ class DataWin(QWidget):
         self.initUI()
 
     def initUI(self):
-        if self.data:
+        if len(self.data) > 1:
             self.lineName.setText(self.data[1])
             self.lineRoastics.setText(self.data[2])
             self.comboShape.setCurrentText(self.data[3])
@@ -76,16 +106,15 @@ class DataWin(QWidget):
         self.writeButton.clicked.connect(self.return_data)
 
     def return_data(self):
-        self.data.clear()
+        self.data = self.data[:1]
         self.data.append(self.lineName.text())
         self.data.append(self.lineRoastics.text())
         self.data.append(self.comboShape.currentText())
         self.data.append(self.lineTaste.text())
         self.data.append(self.linePrice.text())
         self.data.append(self.lineValue.text())
-        print(self.data)
+        self.new_data.emit(self.data)
         self.close()
-
 
 
 def main():
@@ -104,5 +133,3 @@ sys.excepthook = excepthook
 
 if __name__ == "__main__":
     main()
-
-
