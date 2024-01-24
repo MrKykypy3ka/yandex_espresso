@@ -1,21 +1,22 @@
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QApplication, QWidget, QHeaderView, QTableWidgetItem
-from PyQt5 import uic
-import sys
 import sqlite3 as sq
+import sys
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QApplication, QHeaderView, QTableWidgetItem, QMainWindow
+from GUI.MainForm import Ui_UiM
+from GUI.addEditCoffeeForm import Ui_UiA
 
 
-class MainWin(QWidget):
+class MainWin(QMainWindow, Ui_UiM):
     def __init__(self):
-        super().__init__()
+        super(MainWin, self).__init__()
+        self.setupUi(self)
         self.cur = None
         self.db = None
-        uic.loadUi('MainForm.ui', self)
-        self.initDB()
-        self.initUI()
+        self.init_db()
+        self.init_ui()
         self.view()
 
-    def initUI(self):
+    def init_ui(self):
         self.tableWidget.setColumnCount(7)
         self.tableWidget.setHorizontalHeaderLabels(['ID', 'название сорта', 'степень обжарки',
                                                     'молотый/в зернах', 'описание вкуса', 'цена', 'объем упаковки'])
@@ -61,13 +62,14 @@ class MainWin(QWidget):
         selected_items = self.tableWidget.selectedItems()
         if len(selected_items) > 0:
             selected_row = selected_items[0].row()
-            row_data = [self.tableWidget.item(selected_row, col).text() for col in range(self.tableWidget.columnCount())]
+            row_data = [self.tableWidget.item(selected_row, col).text()
+                        for col in range(self.tableWidget.columnCount())]
             return row_data
 
     def show_data_form(self):
         data = [max(map(int, [self.tableWidget.item(row, 0).text()
-                             for row in range(self.tableWidget.rowCount())
-                             if self.tableWidget.item(row, 0) is not None ]))+1]
+                              for row in range(self.tableWidget.rowCount())
+                              if self.tableWidget.item(row, 0) is not None]))+1]
         if self.sender().text() == 'Изменить':
             data = self.get_row()
         if data is not None:
@@ -78,24 +80,23 @@ class MainWin(QWidget):
                 self.data_win.new_data.connect(self.edit)
             self.data_win.show()
 
-
-
-    def initDB(self):
-        self.db = sq.connect('coffee.sqlite')
+    def init_db(self):
+        self.db = sq.connect('data/coffee.sqlite')
         self.cur = self.db.cursor()
 
 
-class DataWin(QWidget):
+class DataWin(QMainWindow, Ui_UiA):
     new_data = pyqtSignal(list)
+
     def __init__(self, data):
-        super().__init__()
+        super(DataWin, self).__init__()
+        self.setupUi(self)
         self.data = data
         self.cur = None
         self.db = None
-        uic.loadUi('addEditCoffeeForm.ui', self)
-        self.initUI()
+        self.init_ui()
 
-    def initUI(self):
+    def init_ui(self):
         if len(self.data) > 1:
             self.lineName.setText(self.data[1])
             self.lineRoastics.setText(self.data[2])
